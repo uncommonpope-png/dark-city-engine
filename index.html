@@ -11,14 +11,44 @@ canvas{display:block}
 <div id="info">Dark City Engine | Click canvas to look | WASD to move</div>
 <canvas id="dark_city_canvas"></canvas>
 <script type="module">
-const canvas=document.getElementById('dark_city_canvas');
-function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}
-resize();window.addEventListener('resize',resize);
-const errDiv=document.getElementById('error');
-window.addEventListener('error',(e)=>{errDiv.style.display='block';errDiv.textContent+='ERR: '+e.message+'\n'});
-(async()=>{
-try{const mod=await import('./pkg/dark_city_engine.js');await mod.default()}
-catch(e){errDiv.style.display='block';errDiv.textContent='Engine failed: '+e.message+'\n'+(e.stack||'')}
+const errDiv = document.getElementById('error');
+function showError(msg) {
+  errDiv.style.display = 'block';
+  errDiv.textContent += msg + '\n';
+}
+
+// Check WebGPU before loading WASM
+if (!navigator.gpu) {
+  showError('WebGPU NOT AVAILABLE. Use Chrome 113+ or Edge 113+.');
+} else {
+  showError('WebGPU detected. Loading engine...');
+}
+
+// Resize canvas
+const canvas = document.getElementById('dark_city_canvas');
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Catch all errors
+window.addEventListener('error', (e) => {
+  showError('JS: ' + e.message);
+});
+
+// Load WASM engine
+(async () => {
+  try {
+    const mod = await import('./pkg/dark_city_engine.js');
+    showError('WASM loaded. Initializing...');
+    await mod.default();
+    showError('Engine running!');
+  } catch(e) {
+    showError('Engine failed: ' + e.message);
+    if(e.stack) showError(e.stack);
+  }
 })();
 </script>
 </body>
