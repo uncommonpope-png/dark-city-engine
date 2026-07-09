@@ -2,6 +2,7 @@ use crate::shader::ShaderManager;
 use wgpu::util::DeviceExt;
 
 use crate::camera::Camera;
+use crate::asset::generate_city_vertices;
 use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
@@ -37,6 +38,7 @@ pub struct WgpuRenderer {
     pipeline: Option<wgpu::RenderPipeline>,
     shader_manager: Option<ShaderManager>,
     vertex_buffer: Option<wgpu::Buffer>,
+    vertex_count: Option<u32>,
     camera: Option<Camera>,
     camera_buffer: Option<wgpu::Buffer>,
     bind_group: Option<wgpu::BindGroup>,
@@ -52,6 +54,7 @@ impl Default for WgpuRenderer {
             pipeline: None,
             shader_manager: None,
             vertex_buffer: None,
+            vertex_count: None,
             camera: None,
             camera_buffer: None,
             bind_group: None,
@@ -174,20 +177,15 @@ impl WgpuRenderer {
                 push_constant_ranges: &[],
             });
 
-            let vertex_data = [
-                Vertex {
-                    position: [-0.5, -0.5, 0.0],
-                    color: [0.92, 0.24, 0.63],
-                },
-                Vertex {
-                    position: [0.5, -0.5, 0.0],
-                    color: [0.16, 0.82, 0.92],
-                },
-                Vertex {
-                    position: [0.0, 0.5, 0.0],
-                    color: [0.98, 0.87, 0.38],
-                },
-            ];
+            let (city_positions, city_colors) = generate_city_vertices();
+
+            let vertex_data: Vec<Vertex> = city_positions.iter().zip(city_colors.iter()).map(|(p, c)| Vertex {
+                position: *p,
+                color: *c,
+            }).collect();
+
+            let vertex_count = vertex_data.len();
+
             let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("dark_city_engine_vertex_buffer"),
                 contents: bytemuck::cast_slice(&vertex_data),
@@ -240,6 +238,7 @@ impl WgpuRenderer {
                 pipeline: Some(pipeline),
                 shader_manager: Some(shader_manager),
                 vertex_buffer: Some(vertex_buffer),
+                vertex_count: Some(vertex_count as u32),
                 camera: Some(camera),
                 camera_buffer: Some(camera_buffer),
                 bind_group: Some(bind_group),
@@ -313,6 +312,10 @@ impl WgpuRenderer {
                 return Err("renderer bind group is not initialized".to_string());
             };
 
+            let Some(vertex_count) = self.vertex_count else {
+                return Err("renderer vertex count is not set".to_string());
+            };
+
             let output = surface
                 .get_current_texture()
                 .map_err(|err| format!("failed to acquire swap-chain texture: {err}"))?;
@@ -344,7 +347,7 @@ impl WgpuRenderer {
                 render_pass.set_pipeline(pipeline);
                 render_pass.set_bind_group(0, bind_group, &[]);
                 render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                render_pass.draw(0..3, 0..1);
+                render_pass.draw(0..vertex_count, 0..1);
             }
 
             queue.submit(std::iter::once(encoder.finish()));

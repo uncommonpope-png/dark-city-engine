@@ -110,3 +110,83 @@ pub fn create_plane_mesh() -> MeshData {
         indices: idxs.to_vec(),
     }
 }
+
+// Generate city building data as flat position+color arrays for the renderer
+pub fn generate_city_vertices() -> (Vec<[f32; 3]>, Vec<[f32; 3]>) {
+    let mut positions: Vec<[f32; 3]> = Vec::new();
+    let mut colors: Vec<[f32; 3]> = Vec::new();
+
+    // Ground plane
+    let ground_size = 20.0;
+    let ground_verts: &[[f32; 3]; 4] = &[
+        [-ground_size, -0.1, -ground_size],
+        [ground_size, -0.1, -ground_size],
+        [ground_size, -0.1, ground_size],
+        [-ground_size, -0.1, ground_size],
+    ];
+    let ground_quad: &[u32; 6] = &[0, 1, 2, 0, 2, 3];
+    let ground_color = [0.05, 0.05, 0.12];
+    for &i in ground_quad.iter() {
+        positions.push(ground_verts[i as usize]);
+        colors.push(ground_color);
+    }
+
+    // Building colors
+    let palette: &[[f32; 3]; 8] = &[
+        [0.92, 0.24, 0.63],  // pink
+        [0.16, 0.82, 0.92],  // cyan
+        [0.98, 0.87, 0.38],  // gold
+        [0.24, 0.92, 0.64],  // green
+        [0.62, 0.28, 1.00],  // purple
+        [1.00, 0.50, 0.20],  // orange
+        [0.30, 0.60, 1.00],  // blue
+        [1.00, 0.20, 0.30],  // red
+    ];
+
+    // Generate buildings in a grid
+    let grid_size = 5;
+    let spacing = 3.0;
+    let offset = -(grid_size as f32 * spacing) / 2.0;
+
+    for x in 0..grid_size {
+        for z in 0..grid_size {
+            let bx = offset + x as f32 * spacing;
+            let bz = offset + z as f32 * spacing;
+            let height = 0.5 + ((x * 7 + z * 13) % 5) as f32 * 0.5;
+            let col_idx = (x * 3 + z * 7) % 8;
+            let color = palette[col_idx];
+
+            // Building cube vertices (8 corners)
+            let h = height;
+            let s = 0.8;
+            let verts: &[[f32; 3]; 8] = &[
+                [bx - s, 0.0, bz - s],
+                [bx + s, 0.0, bz - s],
+                [bx + s, h, bz - s],
+                [bx - s, h, bz - s],
+                [bx - s, 0.0, bz + s],
+                [bx + s, 0.0, bz + s],
+                [bx + s, h, bz + s],
+                [bx - s, h, bz + s],
+            ];
+
+            let faces: &[[u32; 6]; 6] = &[
+                [0, 1, 2, 2, 3, 0],
+                [5, 4, 7, 7, 6, 5],
+                [4, 0, 3, 3, 7, 4],
+                [1, 5, 6, 6, 2, 1],
+                [3, 2, 6, 6, 7, 3],
+                [4, 5, 1, 1, 0, 4],
+            ];
+
+            for face in faces.iter() {
+                for &vi in face.iter() {
+                    positions.push(verts[vi as usize]);
+                    colors.push(color);
+                }
+            }
+        }
+    }
+
+    (positions, colors)
+}
