@@ -14,13 +14,13 @@ pub struct Camera {
 impl Camera {
     pub fn new(width: u32, height: u32) -> Self {
         Self {
-            eye: glam::Vec3::new(0.0, 2.0, 5.0),
-            target: glam::Vec3::ZERO,
+            eye: glam::Vec3::new(0.0, 15.0, 25.0),
+            target: glam::Vec3::new(0.0, 0.0, 0.0),
             up: glam::Vec3::Y,
             fov_y: std::f32::consts::FRAC_PI_4,
             aspect: width as f32 / height as f32,
             near: 0.1,
-            far: 100.0,
+            far: 200.0,
         }
     }
 

@@ -117,7 +117,7 @@ pub fn generate_city_vertices() -> (Vec<[f32; 3]>, Vec<[f32; 3]>) {
     let mut colors: Vec<[f32; 3]> = Vec::new();
 
     // Ground plane
-    let ground_size = 20.0;
+    let ground_size = 30.0;
     let ground_verts: &[[f32; 3]; 4] = &[
         [-ground_size, -0.1, -ground_size],
         [ground_size, -0.1, -ground_size],
@@ -125,40 +125,40 @@ pub fn generate_city_vertices() -> (Vec<[f32; 3]>, Vec<[f32; 3]>) {
         [-ground_size, -0.1, ground_size],
     ];
     let ground_quad: &[u32; 6] = &[0, 1, 2, 0, 2, 3];
-    let ground_color = [0.05, 0.05, 0.12];
+    let ground_color = [0.05, 0.05, 0.15];
     for &i in ground_quad.iter() {
         positions.push(ground_verts[i as usize]);
         colors.push(ground_color);
     }
 
-    // Building colors
+    // Building palette — neon Dark City colors
     let palette: &[[f32; 3]; 8] = &[
-        [0.92, 0.24, 0.63],  // pink
-        [0.16, 0.82, 0.92],  // cyan
-        [0.98, 0.87, 0.38],  // gold
-        [0.24, 0.92, 0.64],  // green
-        [0.62, 0.28, 1.00],  // purple
-        [1.00, 0.50, 0.20],  // orange
+        [1.00, 0.30, 0.60],  // hot pink
+        [0.10, 0.90, 1.00],  // cyan
+        [1.00, 0.90, 0.20],  // gold
+        [0.20, 1.00, 0.60],  // emerald
+        [0.70, 0.30, 1.00],  // violet
+        [1.00, 0.50, 0.00],  // orange
         [0.30, 0.60, 1.00],  // blue
-        [1.00, 0.20, 0.30],  // red
+        [0.00, 1.00, 0.40],  // lime
     ];
 
-    // Generate buildings in a grid
-    let grid_size = 5;
-    let spacing = 3.0;
+    // Generate buildings in a wider grid
+    let grid_size = 8;
+    let spacing = 4.0;
     let offset = -(grid_size as f32 * spacing) / 2.0;
 
     for x in 0..grid_size {
         for z in 0..grid_size {
             let bx = offset + x as f32 * spacing;
             let bz = offset + z as f32 * spacing;
-            let height = 0.5 + ((x * 7 + z * 13) % 5) as f32 * 0.5;
+            let height = 1.0 + ((x * 7 + z * 13) % 6) as f32 * 1.0;
             let col_idx = (x * 3 + z * 7) % 8;
             let color = palette[col_idx];
 
-            // Building cube vertices (8 corners)
+            // Building
             let h = height;
-            let s = 0.8;
+            let s = 1.2;
             let verts: &[[f32; 3]; 8] = &[
                 [bx - s, 0.0, bz - s],
                 [bx + s, 0.0, bz - s],
