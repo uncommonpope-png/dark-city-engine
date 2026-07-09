@@ -116,6 +116,11 @@ pub fn generate_city_vertices() -> (Vec<[f32; 3]>, Vec<[f32; 3]>) {
     let mut positions: Vec<[f32; 3]> = Vec::new();
     let mut colors: Vec<[f32; 3]> = Vec::new();
 
+    // DEBUG: big triangle at origin, R=red, G=green, B=blue at corners
+    positions.push([0.0, 5.0, 0.0]); colors.push([1.0, 0.0, 0.0]); // top red
+    positions.push([5.0, 0.0, 0.0]); colors.push([0.0, 1.0, 0.0]); // right green
+    positions.push([-5.0, 0.0, 0.0]); colors.push([0.0, 0.0, 1.0]); // left blue
+
     // Ground plane
     let ground_size = 30.0;
     let ground_verts: &[[f32; 3]; 4] = &[
