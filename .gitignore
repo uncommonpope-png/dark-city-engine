@@ -1,5 +1,4 @@
 /target
 /pkg/.gitignore
-*.wasm
 node_modules
 .DS_Store
