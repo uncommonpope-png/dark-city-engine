@@ -8,9 +8,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 bevy_ecs = "0.14"
-wgpu = "23.0"
+wgpu = "22.0"
 wasm-bindgen = "0.2"
-web-sys = { version = "0.3", features = ["HtmlCanvasElement", "Window", "Document", "Element", "Response", "KeyboardEvent", "MouseEvent"] }
+web-sys = { version = "0.3", features = ["HtmlCanvasElement", "Window", "Document", "Element", "Response", "KeyboardEvent", "MouseEvent", "console", "CanvasRenderingContext2d", "HtmlElement"] }
 js-sys = "0.3"
 web-time = "1.0"
 console_error_panic_hook = "0.1"
