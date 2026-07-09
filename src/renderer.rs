@@ -47,11 +47,24 @@ impl WgpuRenderer {
         let surface = instance.create_surface(wgpu::SurfaceTarget::Canvas(canvas))
             .map_err(|e| format!("surface: {e}"))?;
 
-        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
+        // Try requesting adapter WITHOUT compatible_surface first.
+        // On WebGPU the surface type from Canvas may not be recognized as
+        // compatible, but any adapter works with all surfaces on WebGPU.
+        let adapter = match instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
-            compatible_surface: Some(&surface),
-            force_fallback_adapter: false,
-        }).await.ok_or("no adapter")?;
+            compatible_surface: None,
+            force_fallback_adapter: true,
+        }).await {
+            Some(a) => a,
+            None => {
+                log("no adapter without compatible_surface, trying with compatible_surface...");
+                instance.request_adapter(&wgpu::RequestAdapterOptions {
+                    power_preference: wgpu::PowerPreference::HighPerformance,
+                    compatible_surface: Some(&surface),
+                    force_fallback_adapter: true,
+                }).await.ok_or("no adapter")?
+            }
+        };
 
         let adapter_info = adapter.get_info();
         log(&format!("Adapter: {} ({:?})", adapter_info.name, adapter_info.backend));
