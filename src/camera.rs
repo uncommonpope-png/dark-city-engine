@@ -14,7 +14,7 @@ pub struct Camera {
 impl Camera {
     pub fn new(width: u32, height: u32) -> Self {
         Self {
-            eye: glam::Vec3::new(0.0, 15.0, 25.0),
+            eye: glam::Vec3::new(0.0, 10.0, 18.0),
             target: glam::Vec3::new(0.0, 0.0, 0.0),
             up: glam::Vec3::Y,
             fov_y: std::f32::consts::FRAC_PI_4,
