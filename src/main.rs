@@ -1,123 +1,102 @@
-#[cfg(target_arch = "wasm32")]
-use dark_city_engine::{Game, input::{self, InputState, get_input_state}};
-#[cfg(target_arch = "wasm32")]
+use dark_city_engine::{Game, input::{self, get_input_state}};
 use wasm_bindgen::prelude::*;
-#[cfg(target_arch = "wasm32")]
-use web_sys::{console, window};
-#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
+use web_sys::{console, window, HtmlCanvasElement};
 use std::rc::Rc;
-#[cfg(target_arch = "wasm32")]
 use std::cell::RefCell;
 
-#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
 pub async fn main_wasm() -> Result<(), JsValue> {
-    #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
-
     console::log_1(&"Dark City Engine Initializing...".into());
 
-    // Set up input event listeners
-    input::InputState::setup_event_listeners()?;
+    // Check WebGPU support
+    let nav = js_sys::Reflect::get(&js_sys::global(), &JsValue::from_str("navigator"));
+    let has_gpu = if let Ok(n) = nav {
+        js_sys::Reflect::get(&n, &JsValue::from_str("gpu")).is_ok()
+    } else { false };
 
-    let window = window().expect("should have a window document");
-    let document = window.document().expect("should have a document on window");
-    let canvas = document.get_element_by_id("dark_city_canvas")
-        .expect("should have dark_city_canvas on the document")
-        .dyn_into::<web_sys::HtmlCanvasElement>()
-        .map_err(|_| JsValue::from_str("Can't get canvas element"))?;
-
-    let mut game = Game::new(canvas).await.map_err(|e| JsValue::from_str(&e))?;
-
-    // Enable pointer lock for first-person camera on click
-    {
-        let canvas_clone = canvas.clone();
-        let click_handler = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |_event: web_sys::MouseEvent| {
-            if canvas_clone.pointer_lock_element().is_none() {
-                let _ = canvas_clone.request_pointer_lock();
-            }
-        });
-        canvas.add_event_listener_with_callback("click", click_handler.as_ref().unchecked_ref())?;
-        click_handler.forget();
+    if !has_gpu {
+        let msg = "WebGPU not available. Use Chrome 113+.";
+        console::error_1(&JsValue::from_str(msg));
+        show_error(msg);
+        return Ok(());
     }
 
-    let pointer_lock_change = Closure::<dyn FnMut()>::new(move || {
-        console::log_1(&"Pointer lock changed".into());
+    console::log_1(&"WebGPU detected!".into());
+    let _ = input::InputState::setup_event_listeners();
+
+    let window = window().unwrap();
+    let document = window.document().unwrap();
+    let canvas = document.get_element_by_id("dark_city_canvas")
+        .unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
+
+    console::log_1(&"Creating Game...".into());
+    let mut game = match Game::new(canvas.clone()).await {
+        Ok(g) => g,
+        Err(e) => { show_error(&format!("Engine error: {}", e)); return Ok(()); }
+    };
+    console::log_1(&"Game ready!".into());
+
+    let canvas2 = canvas.clone();
+    let click_h = Closure::<dyn FnMut(web_sys::MouseEvent)>::new(move |_| {
+        if canvas2.pointer_lock_element().is_none() {
+            let _ = canvas2.request_pointer_lock();
+        }
     });
-    document.add_event_listener_with_callback("pointerlockchange", pointer_lock_change.as_ref().unchecked_ref())?;
-    pointer_lock_change.forget();
+    canvas.add_event_listener_with_callback("click", click_h.as_ref().unchecked_ref())?;
+    click_h.forget();
 
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
-
     *g.borrow_mut() = Some(Closure::new(move || {
-        let input_state = get_input_state();
-
-        // WASD camera movement
+        let inp = get_input_state();
         let speed = 5.0 * game.time().delta;
-        {
-            let camera = game.renderer_mut().camera_mut();
-            if let Some(camera) = camera {
-                let forward = (camera.target - camera.eye).normalize();
-                let right = forward.cross(camera.up).normalize();
-
-                if input_state.is_key_down("w") || input_state.is_key_down("W") {
-                    camera.eye += forward * speed;
-                    camera.target += forward * speed;
-                }
-                if input_state.is_key_down("s") || input_state.is_key_down("S") {
-                    camera.eye -= forward * speed;
-                    camera.target -= forward * speed;
-                }
-                if input_state.is_key_down("a") || input_state.is_key_down("A") {
-                    camera.eye -= right * speed;
-                    camera.target -= right * speed;
-                }
-                if input_state.is_key_down("d") || input_state.is_key_down("D") {
-                    camera.eye += right * speed;
-                    camera.target += right * speed;
-                }
-
-                // Mouse look (only when pointer is locked)
-                if canvas.pointer_lock_element().is_some() {
-                    let sensitivity = 0.002;
-                    let yaw = -input_state.mouse_dx * sensitivity;
-                    let pitch = -input_state.mouse_dy * sensitivity;
-                    let forward_dir = (camera.target - camera.eye).normalize();
-                    let right_dir = forward_dir.cross(camera.up).normalize();
-                    let up_dir = right_dir.cross(forward_dir).normalize();
-
-                    // Orbit around target for first-person feel
-                    let radius = (camera.target - camera.eye).length();
-                    let current_forward = (camera.target - camera.eye).normalize();
-                    let new_forward = current_forward + right_dir * yaw + up_dir * pitch;
-                    let new_forward = new_forward.normalize();
-                    camera.eye = camera.target - new_forward * radius;
-                }
-
-                game.renderer_mut().update_camera_buffer();
+        if let Some(cam) = game.renderer_mut().camera_mut() {
+            let fwd = (cam.target - cam.eye).normalize();
+            let right = fwd.cross(cam.up).normalize();
+            if inp.is_key_down("w") { cam.eye += fwd * speed; cam.target += fwd * speed; }
+            if inp.is_key_down("s") { cam.eye -= fwd * speed; cam.target -= fwd * speed; }
+            if inp.is_key_down("a") { cam.eye -= right * speed; cam.target -= right * speed; }
+            if inp.is_key_down("d") { cam.eye += right * speed; cam.target += right * speed; }
+            if canvas.pointer_lock_element().is_some() {
+                let sens = 0.002;
+                let yaw = -inp.mouse_dx * sens;
+                let pitch = -inp.mouse_dy * sens;
+                let dir = (cam.target - cam.eye).normalize();
+                let r = dir.cross(cam.up).normalize();
+                let u = r.cross(dir).normalize();
+                let rad = (cam.target - cam.eye).length();
+                let nd = (dir + r * yaw + u * pitch).normalize();
+                cam.eye = cam.target - nd * rad;
             }
+            game.renderer_mut().update_camera_buffer();
         }
-
         if let Err(e) = game.tick() {
-            console::error_1(&JsValue::from_str(&format!("Game tick error: {}", e)));
+            console::error_1(&JsValue::from_str(&format!("Tick: {}", e)));
             return;
         }
         request_animation_frame(f.borrow().as_ref().unwrap());
     }));
-
     request_animation_frame(g.borrow().as_ref().unwrap());
-
     Ok(())
 }
 
-#[cfg(target_arch = "wasm32")]
-fn request_animation_frame(f: &Closure<dyn FnMut()>) {
-    window()
-        .expect("window")
-        .request_animation_frame(f.as_ref().unchecked_ref())
-        .expect("should register `requestAnimationFrame` okay");
+fn show_error(msg: &str) {
+    if let Some(doc) = window().and_then(|w| w.document()) {
+        if let Some(el) = doc.get_element_by_id("dark_city_canvas") {
+            if let Ok(c) = el.dyn_into::<HtmlCanvasElement>() {
+                if let Ok(Some(ctx)) = c.get_context("2d") {
+                    let ctx: web_sys::CanvasRenderingContext2d = ctx.unchecked_into();
+                    ctx.set_fill_style(&JsValue::from_str("#ff4444"));
+                    ctx.set_font("14px monospace");
+                    ctx.fill_text(msg, 10.0, 30.0).ok();
+                }
+            }
+        }
+    }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn main() {}
+fn request_animation_frame(f: &Closure<dyn FnMut()>) {
+    window().unwrap().request_animation_frame(f.as_ref().unchecked_ref()).unwrap();
+}
